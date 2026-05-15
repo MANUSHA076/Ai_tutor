@@ -1,0 +1,49 @@
+import { motion } from 'framer-motion'
+import { DocumentUploadZone } from '../components/upload/DocumentUploadZone'
+import { ExtractionSettings } from '../components/upload/ExtractionSettings'
+import { StorageCard } from '../components/upload/StorageCard'
+import { RecentUploads } from '../components/upload/RecentUploads'
+
+export function UploadPage({
+  extractionOptions,
+  onToggleExtraction,
+  pageStart,
+  pageEnd,
+  onPageStart,
+  onPageEnd,
+  onBrowse,
+  recentUploads,
+}) {
+  return (
+    <div className="upload-page">
+      <motion.header
+        className="upload-page-header"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+      >
+        <h1>Process New Document</h1>
+        <p>Turn your static PDFs into interactive, AI-powered learning modules instantly.</p>
+      </motion.header>
+
+      <div className="upload-page-grid">
+        <div className="upload-main">
+          <DocumentUploadZone onBrowse={onBrowse} />
+          <ExtractionSettings
+            options={extractionOptions}
+            onToggle={onToggleExtraction}
+            pageStart={pageStart}
+            pageEnd={pageEnd}
+            onPageStart={onPageStart}
+            onPageEnd={onPageEnd}
+          />
+        </div>
+
+        <aside className="upload-sidebar">
+          <StorageCard />
+          <RecentUploads uploads={recentUploads} />
+        </aside>
+      </div>
+    </div>
+  )
+}

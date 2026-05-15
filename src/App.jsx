@@ -1,39 +1,47 @@
 import { useState } from 'react'
 import { avatars } from './data/avatars'
-import { useMaterials } from './hooks/useMaterials'
-import { HeroPanel } from './components/HeroPanel'
-import { MaterialsList } from './components/MaterialsList'
-import { LecturePreview } from './components/LecturePreview'
+import { voiceOptions } from './data/voiceOptions'
+import { DashboardLayout } from './layouts/DashboardLayout'
 import './App.css'
 
+const defaultFile = {
+  name: 'Quantum_Physics_Intro.pdf',
+  size: '1.5 MB',
+}
+
 function App() {
-  const { materials, totals, addMockFile } = useMaterials()
+  const [activeNav, setActiveNav] = useState('home')
+  const [sourceFile, setSourceFile] = useState(defaultFile)
   const [selectedAvatar, setSelectedAvatar] = useState(0)
-  const [videoActive, setVideoActive] = useState(false)
+  const [voice, setVoice] = useState(voiceOptions[0])
+  const [activeTab, setActiveTab] = useState('script')
+  const [isPlaying, setIsPlaying] = useState(true)
+
+  const handleUpload = () => {
+    setSourceFile({
+      name: `Lecture_${Date.now().toString().slice(-4)}.pdf`,
+      size: `${(Math.random() * 2 + 0.8).toFixed(1)} MB`,
+    })
+  }
 
   return (
-    <main className="app-shell">
-      <HeroPanel
-        materials={materials}
-        totals={totals}
-        addMockFile={addMockFile}
-        videoActive={videoActive}
-        onToggleVideo={() => setVideoActive((previous) => !previous)}
-        avatars={avatars}
-        selectedAvatar={selectedAvatar}
-        onSelectAvatar={setSelectedAvatar}
-      />
-
-      <section className="content-grid">
-        <MaterialsList materials={materials} />
-        <LecturePreview
-          materials={materials}
-          avatars={avatars}
-          selectedAvatar={selectedAvatar}
-          videoActive={videoActive}
-        />
-      </section>
-    </main>
+    <DashboardLayout
+      activeNav={activeNav}
+      onNavChange={setActiveNav}
+      onNewLecture={handleUpload}
+      sourceFile={sourceFile}
+      onUpload={handleUpload}
+      onRemoveFile={() => setSourceFile(null)}
+      isPlaying={isPlaying}
+      onTogglePlay={() => setIsPlaying((prev) => !prev)}
+      avatars={avatars}
+      selectedAvatar={selectedAvatar}
+      onSelectAvatar={setSelectedAvatar}
+      voice={voice}
+      onVoiceChange={setVoice}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+    />
   )
 }
 

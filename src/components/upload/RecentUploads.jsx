@@ -13,7 +13,7 @@ const statusClass = {
   failed: 'status-failed',
 }
 
-export function RecentUploads({ uploads, onRefresh }) {
+export function RecentUploads({ uploads, onRefresh, onProcess, processingId }) {
   return (
     <motion.section
       className="upload-page-card recent-card"
@@ -69,6 +69,22 @@ export function RecentUploads({ uploads, onRefresh }) {
                   />
                 )}
               </div>
+              {onProcess && file.storage_path && (
+                <motion.button
+                  type="button"
+                  className="process-btn"
+                  disabled={processingId === 'busy'}
+                  onClick={() => onProcess(file)}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  {processingId === 'busy' ? (
+                    <Loader2 className="icon-sm spin-icon" />
+                  ) : (
+                    'Index'
+                  )}
+                </motion.button>
+              )}
               {file.status === 'failed' && (
                 <motion.button
                   type="button"

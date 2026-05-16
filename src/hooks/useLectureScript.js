@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchLectureScript } from '../api/homeApi'
 
-export function useLectureScript(activeTab) {
+export function useLectureScript(activeTab, ragSource = '') {
   const [lines, setLines] = useState([])
   const [summary, setSummary] = useState([])
   const [loading, setLoading] = useState(true)
@@ -10,7 +10,7 @@ export function useLectureScript(activeTab) {
     let cancelled = false
     setLoading(true)
 
-    fetchLectureScript(activeTab)
+    fetchLectureScript(activeTab, ragSource ? { source: ragSource } : {})
       .then((data) => {
         if (cancelled) return
         setLines(Array.isArray(data?.lines) ? data.lines : [])
@@ -29,7 +29,7 @@ export function useLectureScript(activeTab) {
     return () => {
       cancelled = true
     }
-  }, [activeTab])
+  }, [activeTab, ragSource])
 
   return { lines, summary, loading }
 }

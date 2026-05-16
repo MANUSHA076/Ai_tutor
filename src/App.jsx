@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { extractionDefaults } from './components/upload/ExtractionSettings'
 import { AppShell } from './layouts/AppShell'
 import { HomePage } from './pages/HomePage'
@@ -8,7 +8,13 @@ import { StudioPage } from './pages/StudioPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { useDocuments } from './hooks/useDocuments'
 import { useHomeSession } from './hooks/useHomeSession'
+import { usePipeline } from './hooks/usePipeline'
+import { formatFileSize } from './utils/formatFileSize'
+import { generateLectureAudio } from './api/lectureApi'
 import './App.css'
+
+const DEFAULT_RAG_TTS_MESSAGE =
+  'Summarize this document and write a clear lecture script suitable for text-to-speech.'
 
 const pageConfig = {
   home: { searchPlaceholder: 'Search lectures...', showNewLecture: true },
@@ -28,13 +34,63 @@ function App() {
   const [extractionOptions, setExtractionOptions] = useState(extractionDefaults)
   const [pageStart, setPageStart] = useState('')
   const [pageEnd, setPageEnd] = useState('')
+  const [audioPrompt, setAudioPrompt] = useState('')
+  const [ragTtsLoading, setRagTtsLoading] = useState(false)
+  const [ragTtsError, setRagTtsError] = useState('')
+  const [videoUrl, setVideoUrl] = useState('')
+  const [audioUrl, setAudioUrl] = useState('')
+  const [audioLoading, setAudioLoading] = useState(false)
+  const [audioError, setAudioError] = useState('')
+  const [testText, setTestText] = useState(
+    'Today we will learn about diode characteristics, forward bias, and reverse breakdown.',
+  )
+  const [testLoading, setTestLoading] = useState(false)
+  const [testError, setTestError] = useState('')
+  const [genMessage, setGenMessage] = useState('')
 
-  const { avatars, sourceFile: sessionFile, reload: reloadHome } = useHomeSession()
-  const { uploads, uploading, uploadError, uploadFile, refreshUploads } = useDocuments()
+  const {
+    avatars,
+    sourceFile: sessionFile,
+    pipelineSource,
+    offline,
+    sessionError,
+    reload: reloadHome,
+  } = useHomeSession()
+  const { uploads, uploading, uploadError, uploadWarning, uploadFile, refreshUploads } =
+    useDocuments()
+  const {
+    processing,
+    indexing,
+    processError,
+    ragSource,
+    setRagSource,
+    runProcess,
+    searchRag,
+  } = usePipeline()
 
   useEffect(() => {
-    if (sessionFile && !sourceFile) setSourceFile(sessionFile)
-  }, [sessionFile, sourceFile])
+    if (!sessionFile?.name) return
+    setSourceFile((prev) => {
+      if (prev?.pending || uploading || processing || indexing) return prev
+      return sessionFile
+    })
+  }, [sessionFile, uploading, processing, indexing])
+
+  useEffect(() => {
+    if (sourceFile?.name || !uploads.length) return
+    const latest = uploads[0]
+    if (latest?.name) {
+      setSourceFile({
+        name: latest.name,
+        size: latest.size,
+        storage_path: latest.storage_path,
+      })
+    }
+  }, [uploads, sourceFile?.name])
+
+  useEffect(() => {
+    if (pipelineSource && !ragSource) setRagSource(pipelineSource)
+  }, [pipelineSource, ragSource, setRagSource])
 
   useEffect(() => {
     if (avatars.length > 0 && !voice) {
@@ -44,16 +100,189 @@ function App() {
 
   const config = pageConfig[activeNav] ?? pageConfig.home
 
-  const handleFileUpload = async (file) => {
-    const result = await uploadFile(file, {
+  const processUploadedFile = useCallback(
+    async (uploadResult) => {
+      if (!uploadResult?.storage_path) return null
+      try {
+        const data = await runProcess(uploadResult.storage_path)
+        setActiveNav('home')
+        return data
+      } catch {
+        return null
+      }
+    },
+    [runProcess],
+  )
+
+  const handleFileUpload = useCallback(
+    async (file) => {
+      setSourceFile({
+        name: file.name,
+        size: formatFileSize(file.size),
+        pending: true,
+      })
+
+      const result = await uploadFile(file, {
+        pageStart,
+        pageEnd,
+        extraction: extractionOptions,
+      })
+
+      setSourceFile({
+        name: result.name || file.name,
+        size: result.size || formatFileSize(file.size),
+        storage_path: result.storage_path,
+      })
+
+      reloadHome()
+      refreshUploads()
+
+      if (result.storage_path) {
+        processUploadedFile(result).catch(() => {})
+      }
+
+      return result
+    },
+    [
+      uploadFile,
       pageStart,
       pageEnd,
-      extraction: extractionOptions,
-    })
-    setSourceFile({ name: result.name, size: result.size })
-    reloadHome()
-    return result
+      extractionOptions,
+      reloadHome,
+      refreshUploads,
+      processUploadedFile,
+    ],
+  )
+
+  const handleProcessUpload = async (item) => {
+    if (!item?.storage_path) return
+    setSourceFile({ name: item.name, size: item.size, storage_path: item.storage_path })
+    await processUploadedFile(item)
+    setActiveNav('home')
   }
+
+  const handleRagSearch = useCallback(
+    (query) => searchRag(query),
+    [searchRag],
+  )
+
+  const selectedAvatarMeta = avatars[selectedAvatar] || null
+
+  const falLectureOptions = useCallback(
+    () => ({
+      avatarId: selectedAvatarMeta?.id,
+      voice: selectedAvatarMeta?.fal_voice || selectedAvatarMeta?.name?.replace(/^Dr\.\s*/, '') || 'Sarah',
+      avatarUrl: selectedAvatarMeta?.avatar_url || null,
+      videoPrompt: 'professional lecture speech',
+      stability: 0.6,
+    }),
+    [selectedAvatarMeta],
+  )
+
+  const applyMediaResult = useCallback((data, fallbackScript = '') => {
+    const script = data?.script || fallbackScript
+    if (script) setAudioPrompt(script)
+    if (data?.video_url) {
+      setVideoUrl(data.video_url)
+      setAudioUrl(data.audio_url || '')
+      setIsPlaying(false)
+      return true
+    }
+    if (data?.audio_url) {
+      setVideoUrl('')
+      setAudioUrl(data.audio_url)
+      setIsPlaying(false)
+      return true
+    }
+    return false
+  }, [])
+
+  const handleGenerateRagTts = useCallback(async () => {
+    if (!sourceFile?.storage_path) {
+      setRagTtsError('Upload a PDF first.')
+      return
+    }
+    setRagTtsLoading(true)
+    setRagTtsError('')
+    setAudioError('')
+    setVideoUrl('')
+    try {
+      const data = await generateLectureAudio({
+        storagePath: audioPrompt ? null : sourceFile.storage_path,
+        textMessage: DEFAULT_RAG_TTS_MESSAGE,
+        scriptText: audioPrompt || null,
+        source: ragSource || null,
+        ...falLectureOptions(),
+      })
+      if (!applyMediaResult(data)) {
+        setRagTtsError('No video/audio URL returned. Check FAL_KEY and FAL_DEFAULT_AVATAR_URL in backend/.env')
+      }
+    } catch (err) {
+      setRagTtsError(err?.message || 'Video generation failed')
+    } finally {
+      setRagTtsLoading(false)
+      setGenMessage('')
+    }
+  }, [sourceFile?.storage_path, audioPrompt, ragSource, falLectureOptions, applyMediaResult])
+
+  const handleTestGenerate = useCallback(async () => {
+    const text = testText.trim()
+    if (!text) {
+      setTestError('Type some text in the test field first.')
+      return
+    }
+    setTestLoading(true)
+    setTestError('')
+    setAudioError('')
+    setRagTtsError('')
+    setVideoUrl('')
+    setAudioUrl('')
+    setIsPlaying(false)
+    try {
+      const data = await generateLectureAudio({
+        scriptText: text,
+        ...falLectureOptions(),
+      })
+      if (!applyMediaResult(data, text)) {
+        setTestError('No video/audio URL returned. Check FAL_KEY and FAL_DEFAULT_AVATAR_URL in backend/.env')
+      }
+    } catch (err) {
+      setTestError(err?.message || 'Generation failed — is backend running?')
+    } finally {
+      setTestLoading(false)
+      setGenMessage('')
+    }
+  }, [testText, falLectureOptions, applyMediaResult])
+
+  const handleGenerateAudioOnly = useCallback(async () => {
+    const script = audioPrompt?.trim()
+    if (!script && !ragSource) {
+      setAudioError('Upload and index a PDF first, or generate a script.')
+      return
+    }
+    setAudioLoading(true)
+    setAudioError('')
+    setGenMessage('Starting…')
+    setVideoUrl('')
+    try {
+      const data = await generateLectureAudio(
+        {
+          scriptText: script || null,
+          source: ragSource || null,
+          ...falLectureOptions(),
+        },
+        (job) => setGenMessage(job.message || job.step || 'Processing…'),
+      )
+      if (!applyMediaResult(data)) {
+        setAudioError('No video/audio URL returned. Check FAL_KEY in backend/.env')
+      }
+    } catch (err) {
+      setAudioError(err?.message || 'Video generation failed')
+    } finally {
+      setAudioLoading(false)
+      setGenMessage('')
+    }
+  }, [audioPrompt, ragSource, falLectureOptions, applyMediaResult])
 
   const handleToggleExtraction = (id) => {
     setExtractionOptions((prev) =>
@@ -80,8 +309,12 @@ function App() {
           onFileSelect={handleFileUpload}
           uploading={uploading}
           uploadError={uploadError}
+          processing={processing}
+          processError={processError}
           onRefreshUploads={refreshUploads}
           recentUploads={uploads}
+          onProcessUpload={handleProcessUpload}
+          ragSource={ragSource}
         />
       )
     }
@@ -109,6 +342,8 @@ function App() {
         onFileSelect={handleFileUpload}
         uploading={uploading}
         uploadError={uploadError}
+        uploadWarning={uploadWarning}
+        processError={processError}
         onRemoveFile={() => setSourceFile(null)}
         isPlaying={isPlaying}
         onTogglePlay={() => setIsPlaying((prev) => !prev)}
@@ -119,9 +354,32 @@ function App() {
         onVoiceChange={setVoice}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        ragSource={ragSource}
+        processing={processing || indexing}
+        backendOffline={offline}
+        sessionError={sessionError}
+        canRagTts={Boolean(sourceFile?.storage_path)}
+        ragTtsLoading={ragTtsLoading}
+        ragTtsError={ragTtsError}
+        audioPrompt={audioPrompt}
+        onGenerateRagTts={handleGenerateRagTts}
+        onGenerateAudioOnly={handleGenerateAudioOnly}
+        videoUrl={videoUrl}
+        audioUrl={audioUrl}
+        audioLoading={audioLoading || testLoading}
+        audioError={audioError}
+        testText={testText}
+        onTestTextChange={setTestText}
+        onTestGenerate={handleTestGenerate}
+        testLoading={testLoading}
+        testError={testError}
+        genMessage={genMessage}
+        onRetryBackend={reloadHome}
       />
     )
   }
+
+  const ragSearchEnabled = activeNav === 'home' || activeNav === 'upload'
 
   return (
     <AppShell
@@ -131,6 +389,8 @@ function App() {
       searchPlaceholder={config.searchPlaceholder}
       showNewLecture={config.showNewLecture}
       onNewLecture={() => setActiveNav('upload')}
+      ragSource={ragSearchEnabled ? ragSource : ''}
+      onRagSearch={ragSearchEnabled ? handleRagSearch : undefined}
     >
       {renderPage()}
     </AppShell>

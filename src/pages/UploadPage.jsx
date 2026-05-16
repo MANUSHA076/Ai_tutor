@@ -18,6 +18,10 @@ export function UploadPage({
   uploadError,
   onRefreshUploads,
   recentUploads,
+  processing = false,
+  processError = '',
+  onProcessUpload,
+  ragSource = '',
 }) {
   return (
     <div className="upload-page">
@@ -29,6 +33,11 @@ export function UploadPage({
       >
         <h1>Process New Document</h1>
         <p>Turn your static PDFs into interactive, AI-powered learning modules instantly.</p>
+        {processing && <p className="pipeline-status-msg">Processing PDF into knowledge base…</p>}
+        {processError && <p className="pipeline-error-msg">{processError}</p>}
+        {ragSource && !processing && (
+          <p className="pipeline-status-msg pipeline-ready">Ready for search: {ragSource}</p>
+        )}
       </motion.header>
 
       <div className="upload-page-grid">
@@ -50,7 +59,12 @@ export function UploadPage({
 
         <aside className="upload-sidebar">
           <StorageCard />
-          <RecentUploads uploads={recentUploads} onRefresh={onRefreshUploads} />
+          <RecentUploads
+            uploads={recentUploads}
+            onRefresh={onRefreshUploads}
+            onProcess={onProcessUpload}
+            processingId={processing ? 'busy' : null}
+          />
         </aside>
       </div>
     </div>

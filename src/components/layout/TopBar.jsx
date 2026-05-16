@@ -1,13 +1,53 @@
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bell, Plus, Search } from 'lucide-react'
-// BACKEND [Python]: searchKnowledgeBase — src/api/searchApi.js
-// Wire onChange on search input → searchKnowledgeBase(query, scope)
+import { Bell, Loader2, Plus, Search } from 'lucide-react'
 
 export function TopBar({
   searchPlaceholder = 'Search lectures...',
   showNewLecture = true,
   onNewLecture,
+  ragSource = '',
+  onSearch,
 }) {
+  const [query, setQuery] = useState('')
+  const [searching, setSearching] = useState(false)
+  const [results, setResults] = useState([])
+  const [searchError, setSearchError] = useState('')
+  const debounceRef = useRef(null)
+
+  useEffect(() => {
+    if (!onSearch || !ragSource) {
+      setResults([])
+      setSearchError('')
+      return undefined
+    }
+
+    if (!query.trim()) {
+      setResults([])
+      setSearchError('')
+      return undefined
+    }
+
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true)
+      setSearchError('')
+      try {
+        const data = await onSearch(query)
+        setResults(Array.isArray(data?.results) ? data.results : [])
+      } catch (err) {
+        setResults([])
+        setSearchError(err?.message || 'Search failed')
+      } finally {
+        setSearching(false)
+      }
+    }, 450)
+
+    return () => clearTimeout(debounceRef.current)
+  }, [query, onSearch, ragSource])
+
+  const ragMode = Boolean(ragSource && onSearch)
+
   return (
     <motion.header
       className="topbar"
@@ -15,10 +55,41 @@ export function TopBar({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.1 }}
     >
-      <div className="search-wrap">
+      <motion.div className="search-wrap">
         <Search className="icon-sm search-icon" />
-        <input type="search" placeholder={searchPlaceholder} className="search-input" />
-      </div>
+        <input
+          type="search"
+          placeholder={ragMode ? `Search in ${ragSource}…` : searchPlaceholder}
+          className="search-input"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        {searching && <Loader2 className="icon-sm search-spinner spin-icon" />}
+
+        {ragMode && query.trim() && (results.length > 0 || searchError) && (
+          <div className="search-results-dropdown">
+            {searchError ? (
+              <p className="search-result-error">{searchError}</p>
+            ) : (
+              results.map((item) => (
+                <motion.div
+                  key={item.id}
+                  className="search-result-item"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <p className="search-result-text">{item.text?.slice(0, 200)}</p>
+                  {item.rerank_score != null && (
+                    <span className="search-result-score">
+                      score {item.rerank_score.toFixed(2)}
+                    </span>
+                  )}
+                </motion.div>
+              ))
+            )}
+          </div>
+        )}
+      </motion.div>
 
       <motion.div
         className="topbar-actions"

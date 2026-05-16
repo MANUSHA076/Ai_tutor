@@ -5,6 +5,7 @@ export function useDocuments() {
   const [uploads, setUploads] = useState([])
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [uploadWarning, setUploadWarning] = useState('')
   const [loading, setLoading] = useState(true)
 
   const loadRecent = () => {
@@ -24,9 +25,11 @@ export function useDocuments() {
   const uploadFile = async (file, options = {}) => {
     setUploading(true)
     setUploadError('')
+    setUploadWarning('')
     try {
       const result = await uploadDocument(file, options)
       setUploads((prev) => [result, ...prev.filter((item) => item.id !== result.id)])
+      if (result?.warning) setUploadWarning(result.warning)
       return result
     } catch (err) {
       const message = err?.message || 'Upload failed. Is the backend running?'
@@ -37,5 +40,13 @@ export function useDocuments() {
     }
   }
 
-  return { uploads, uploading, uploadError, loading, uploadFile, refreshUploads: loadRecent }
+  return {
+    uploads,
+    uploading,
+    uploadError,
+    uploadWarning,
+    loading,
+    uploadFile,
+    refreshUploads: loadRecent,
+  }
 }

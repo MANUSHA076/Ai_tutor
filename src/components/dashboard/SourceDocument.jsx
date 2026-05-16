@@ -1,14 +1,61 @@
+import { useCallback, useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { CloudUpload, FileText, Loader2, X } from 'lucide-react'
 import { usePdfPicker } from '../../hooks/usePdfPicker'
+import { formatFileSize } from '../../utils/formatFileSize'
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0 },
 }
 
-export function SourceDocument({ file, onFileSelect, onRemove, uploading = false, uploadError = '' }) {
-  const picker = usePdfPicker(onFileSelect)
+export function SourceDocument({
+  file,
+  onFileSelect,
+  onRemove,
+  uploading = false,
+  processing = false,
+  uploadError = '',
+  uploadWarning = '',
+}) {
+  const [localFile, setLocalFile] = useState(null)
+
+  const handleSelect = useCallback(
+    async (picked) => {
+      setLocalFile({
+        name: picked.name,
+        size: formatFileSize(picked.size),
+        pending: true,
+      })
+      try {
+        await onFileSelect?.(picked)
+      } catch {
+        setLocalFile((prev) =>
+          prev ? { ...prev, pending: false, failed: true } : null,
+        )
+      }
+    },
+    [onFileSelect],
+  )
+
+  const picker = usePdfPicker(handleSelect)
+  const displayFile = file?.name ? file : localFile
+  const hasFile = Boolean(displayFile?.name)
+  const isBusy = uploading || processing || picker.busy || displayFile?.pending
+
+  useEffect(() => {
+    if (file?.name) setLocalFile(file)
+  }, [file])
+
+  const statusLabel = uploading
+    ? 'Uploading...'
+    : processing
+      ? 'Indexing...'
+      : displayFile?.failed
+        ? 'Upload failed'
+        : displayFile?.pending
+          ? 'Preparing...'
+          : 'Ready'
 
   return (
     <motion.section
@@ -17,7 +64,6 @@ export function SourceDocument({ file, onFileSelect, onRemove, uploading = false
       initial="hidden"
       animate="visible"
       transition={{ duration: 0.45, delay: 0.15 }}
-      whileHover={{ y: -2 }}
     >
       <input
         ref={picker.inputRef}
@@ -25,61 +71,77 @@ export function SourceDocument({ file, onFileSelect, onRemove, uploading = false
         accept="application/pdf,.pdf"
         className="pdf-file-input"
         onChange={picker.onInputChange}
-        disabled={uploading}
+        disabled={isBusy}
         aria-hidden
         tabIndex={-1}
       />
 
       <motion.div
-        className={`upload-zone ${picker.isDragging ? 'is-dragging' : ''} ${uploading ? 'is-uploading' : ''}`}
-        onClick={() => !uploading && picker.openPicker()}
+        className={`upload-zone ${hasFile ? 'has-file' : ''} ${picker.isDragging ? 'is-dragging' : ''} ${isBusy ? 'is-uploading' : ''}`}
+        onClick={() => !isBusy && picker.openPicker()}
         onDragOver={picker.onDragOver}
         onDragLeave={picker.onDragLeave}
         onDrop={picker.onDrop}
         role="button"
         tabIndex={0}
-        onKeyDown={(event) => event.key === 'Enter' && !uploading && picker.openPicker()}
-        whileHover={uploading ? {} : { scale: 1.01, borderColor: 'rgba(125, 211, 252, 0.5)' }}
-        whileTap={uploading ? {} : { scale: 0.99 }}
+        onKeyDown={(event) => event.key === 'Enter' && !isBusy && picker.openPicker()}
       >
         <motion.div
           className="upload-icon-wrap"
-          animate={uploading ? {} : { y: [0, -4, 0] }}
+          animate={isBusy ? {} : { y: [0, -4, 0] }}
           transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
         >
-          {uploading ? <Loader2 className="icon-md spin-icon" /> : <CloudUpload className="icon-md" />}
+          {isBusy ? <Loader2 className="icon-md spin-icon" /> : <CloudUpload className="icon-md" />}
         </motion.div>
-        <p className="upload-title">{uploading ? 'Uploading…' : 'Drag and drop PDF here'}</p>
+        <p className="upload-title">
+          {isBusy ? 'Working on your PDF...' : hasFile ? 'Drop another PDF to replace' : 'Drag and drop PDF here'}
+        </p>
         <p className="upload-hint">or click to browse files</p>
       </motion.div>
 
+      {uploadWarning && (
+        <p className="upload-warning-msg" role="status">
+          {uploadWarning}
+        </p>
+      )}
       {(picker.error || uploadError) && (
         <p className="upload-error-msg" role="alert">
           {picker.error || uploadError}
         </p>
       )}
 
-      {file && (
+      {hasFile && (
         <motion.div
           className="file-row"
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          layout
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
         >
           <div className="file-info">
-            <div className="file-icon-wrap">
-              <FileText className="icon-sm" />
-            </div>
-            <div>
-              <p className="file-name">{file.name}</p>
-              <p className="file-size">{file.size}</p>
-            </div>
+            <motion.div className="file-icon-wrap">
+              {isBusy ? <Loader2 className="icon-sm spin-icon" /> : <FileText className="icon-sm" />}
+            </motion.div>
+            <motion.div className="file-meta">
+              <p className="file-name">{displayFile.name}</p>
+              <p className="file-size">
+                {displayFile.size}
+                {' Â· '}
+                <span
+                  className={`file-status ${displayFile.failed ? 'is-failed' : isBusy ? 'is-busy' : 'is-ready'}`}
+                >
+                  {statusLabel}
+                </span>
+              </p>
+            </motion.div>
           </div>
           <motion.button
             type="button"
             className="file-remove"
-            onClick={onRemove}
+            onClick={() => {
+              setLocalFile(null)
+              onRemove?.()
+            }}
+            disabled={isBusy}
             aria-label="Remove file"
             whileHover={{ scale: 1.1, color: '#fca5a5' }}
             whileTap={{ scale: 0.9 }}

@@ -16,6 +16,8 @@ export function AppShell({
   searchPlaceholder,
   showNewLecture,
   onNewLecture,
+  ragSource,
+  onRagSearch,
   children,
 }) {
   return (
@@ -27,6 +29,8 @@ export function AppShell({
           searchPlaceholder={searchPlaceholder}
           showNewLecture={showNewLecture}
           onNewLecture={onNewLecture}
+          ragSource={ragSource}
+          onSearch={onRagSearch}
         />
 
         <AnimatePresence mode="wait">

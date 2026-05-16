@@ -123,6 +123,6 @@ export function StudioPage({ onApplyToLecture }) {
         selectedIndex={selectedAvatar}
         onSelect={setSelectedAvatar}
       />
-    </motion.div>
+    </div>
   )
 }

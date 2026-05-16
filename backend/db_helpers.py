@@ -1,12 +1,26 @@
+import concurrent.futures
+
 from supabase_client import get_supabase, is_configured
 
+_DB_TIMEOUT_SEC = 25
 
-def safe_table_query(table: str, build_query):
+
+def _run_timed(fn, timeout: int = _DB_TIMEOUT_SEC):
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(fn)
+        return future.result(timeout=timeout)
+
+
+def safe_table_query(table: str, build_query, timeout: int = _DB_TIMEOUT_SEC):
     if not is_configured():
         return []
     try:
-        result = build_query(get_supabase().table(table)).execute()
-        return result.data or []
+
+        def run():
+            result = build_query(get_supabase().table(table)).execute()
+            return result.data or []
+
+        return _run_timed(run, timeout=timeout)
     except Exception:
         return []
 

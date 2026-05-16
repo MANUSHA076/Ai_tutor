@@ -5,20 +5,30 @@ export function usePdfPicker(onSelect) {
   const inputRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
 
   const openPicker = useCallback(() => {
     inputRef.current?.click()
   }, [])
 
   const pickFile = useCallback(
-    (file) => {
+    async (file) => {
       const message = validatePdfFile(file)
       if (message) {
         setError(message)
         return
       }
       setError('')
-      onSelect?.(file)
+      if (!onSelect) return
+
+      setBusy(true)
+      try {
+        await onSelect(file)
+      } catch (err) {
+        setError(err?.message || 'Upload failed. Is the backend running?')
+      } finally {
+        setBusy(false)
+      }
     },
     [onSelect],
   )
@@ -57,6 +67,7 @@ export function usePdfPicker(onSelect) {
     isDragging,
     error,
     setError,
+    busy,
     openPicker,
     onInputChange,
     onDragOver,

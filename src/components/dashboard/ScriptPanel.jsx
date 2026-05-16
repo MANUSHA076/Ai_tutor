@@ -7,8 +7,20 @@ const tabs = [
   { id: 'notes', label: 'Lecture Notes Summary' },
 ]
 
-export function ScriptPanel({ activeTab, onTabChange }) {
-  const { lines, summary, loading } = useLectureScript(activeTab)
+export function ScriptPanel({
+  activeTab,
+  onTabChange,
+  ragSource = '',
+  processing = false,
+  canRagTts = false,
+  ragTtsLoading = false,
+  onGenerateRagTts,
+  onGenerateAudioOnly,
+  audioPrompt = '',
+  ragTtsError = '',
+  hasAudio = false,
+}) {
+  const { lines, summary, loading } = useLectureScript(activeTab, ragSource)
 
   return (
     <motion.section
@@ -39,10 +51,60 @@ export function ScriptPanel({ activeTab, onTabChange }) {
         ))}
       </motion.div>
 
+      {processing && (
+        <p className="pipeline-status-msg">
+          <Loader2 className="icon-sm spin-icon" /> Indexing PDF chunks…
+        </p>
+      )}
+      {!processing && ragSource && (
+        <p className="pipeline-status-msg pipeline-ready">Indexed: {ragSource}</p>
+      )}
+
+      <motion.div className="rag-tts-actions">
+        {canRagTts && onGenerateRagTts && (
+          <motion.button
+            type="button"
+            className="rag-tts-btn"
+            disabled={ragTtsLoading}
+            onClick={onGenerateRagTts}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {ragTtsLoading ? (
+              <>
+                <Loader2 className="icon-sm spin-icon" /> Generating script + video…
+              </>
+            ) : (
+              'Generate lecture (RAG → Video)'
+            )}
+          </motion.button>
+        )}
+        {(audioPrompt || ragSource) && onGenerateAudioOnly && !hasAudio && (
+          <motion.button
+            type="button"
+            className="rag-tts-btn rag-tts-btn-secondary"
+            disabled={ragTtsLoading}
+            onClick={onGenerateAudioOnly}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            Video only (from script)
+          </motion.button>
+        )}
+        {hasAudio && <p className="pipeline-status-msg pipeline-ready">Video ready — press play</p>}
+      </motion.div>
+      {ragTtsError && <p className="pipeline-error-msg">{ragTtsError}</p>}
+
       <motion.div className="tab-content">
         {loading ? (
           <p className="data-empty-msg">
             <Loader2 className="icon-sm spin-icon" /> Loading…
+          </p>
+        ) : lines.length === 0 && summary.length === 0 ? (
+          <p className="data-empty-msg">
+            {ragSource
+              ? 'Indexing PDF… script will appear when ready.'
+              : 'Upload a PDF to generate a script.'}
           </p>
         ) : (
           <AnimatePresence mode="wait">
@@ -59,6 +121,10 @@ export function ScriptPanel({ activeTab, onTabChange }) {
                   <p className="data-empty-msg">
                     Upload a PDF or add lecture content in Supabase to generate a script.
                   </p>
+                ) : audioPrompt ? (
+                  <motion.pre className="audio-prompt-block" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                    {audioPrompt}
+                  </motion.pre>
                 ) : (
                   lines.map((line, index) => (
                     <motion.p

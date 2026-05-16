@@ -7,6 +7,7 @@ import { AppShell } from './layouts/AppShell'
 import { HomePage } from './pages/HomePage'
 import { UploadPage } from './pages/UploadPage'
 import { LecturesPage } from './pages/LecturesPage'
+import { StudioPage } from './pages/StudioPage'
 import './App.css'
 
 const defaultFile = {
@@ -18,7 +19,7 @@ const pageConfig = {
   home: { searchPlaceholder: 'Search lectures...', showNewLecture: true },
   upload: { searchPlaceholder: 'Search knowledge base...', showNewLecture: false },
   lectures: { searchPlaceholder: 'Search lectures...', showNewLecture: true },
-  studio: { searchPlaceholder: 'Search avatars...', showNewLecture: true },
+  studio: { searchPlaceholder: 'Search avatar templates...', showNewLecture: false },
   settings: { searchPlaceholder: 'Search settings...', showNewLecture: false },
 }
 
@@ -78,6 +79,10 @@ function App() {
           onViewLecture={() => setActiveNav('home')}
         />
       )
+    }
+
+    if (activeNav === 'studio') {
+      return <StudioPage onApplyToLecture={() => setActiveNav('home')} />
     }
 
     return (

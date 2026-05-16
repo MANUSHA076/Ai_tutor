@@ -67,9 +67,9 @@ export function LecturesFilters({
             )
           })}
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div className="filter-block filter-block-date">
+      <div className="filter-block filter-block-date">
         <p className="filter-block-label">
           <span>Sort by date</span>
         </p>
@@ -102,7 +102,7 @@ export function LecturesFilters({
             )
           })}
         </div>
-      </motion.div>
+      </div>
     </motion.div>
   )
 }

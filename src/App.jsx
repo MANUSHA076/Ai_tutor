@@ -8,6 +8,7 @@ import { HomePage } from './pages/HomePage'
 import { UploadPage } from './pages/UploadPage'
 import { LecturesPage } from './pages/LecturesPage'
 import { StudioPage } from './pages/StudioPage'
+import { SettingsPage } from './pages/SettingsPage'
 import './App.css'
 
 const defaultFile = {
@@ -83,6 +84,10 @@ function App() {
 
     if (activeNav === 'studio') {
       return <StudioPage onApplyToLecture={() => setActiveNav('home')} />
+    }
+
+    if (activeNav === 'settings') {
+      return <SettingsPage />
     }
 
     return (

@@ -1,34 +1,41 @@
 import { useEffect, useState } from 'react'
-import { recentUploads as mockUploads } from '../data/recentUploads'
-// BACKEND [Python]: Connect Upload PDF page
 import { fetchRecentUploads, uploadDocument } from '../api/documentsApi'
 
 export function useDocuments() {
-  const [uploads, setUploads] = useState(mockUploads)
+  const [uploads, setUploads] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState('')
+  const [loading, setLoading] = useState(true)
 
-  // BACKEND [Python]: GET /api/documents/recent — recent uploads sidebar
-  useEffect(() => {
-    fetchRecentUploads()
+  const loadRecent = () => {
+    setLoading(true)
+    return fetchRecentUploads()
       .then((data) => {
-        if (data?.items?.length) setUploads(data.items)
+        if (Array.isArray(data?.items)) setUploads(data.items)
       })
-      .catch(() => {
-        /* keep mock data */
-      })
+      .catch(() => setUploads([]))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    loadRecent()
   }, [])
 
-  // BACKEND [Python]: POST /api/documents/upload — file picker / drag-drop
   const uploadFile = async (file, options = {}) => {
     setUploading(true)
+    setUploadError('')
     try {
       const result = await uploadDocument(file, options)
-      setUploads((prev) => [result, ...prev])
+      setUploads((prev) => [result, ...prev.filter((item) => item.id !== result.id)])
       return result
+    } catch (err) {
+      const message = err?.message || 'Upload failed. Is the backend running?'
+      setUploadError(message)
+      throw err
     } finally {
       setUploading(false)
     }
   }
 
-  return { uploads, uploading, uploadFile }
+  return { uploads, uploading, uploadError, loading, uploadFile, refreshUploads: loadRecent }
 }

@@ -29,6 +29,9 @@ export function AvatarGrid({ avatars, selectedIndex, onSelect, voice, onVoiceCha
       </div>
 
       <motion.div className="avatar-grid" variants={container} initial="hidden" animate="visible">
+        {avatars.length === 0 && (
+          <p className="data-empty-msg">Loading avatars from server…</p>
+        )}
         {avatars.map((avatar, index) => {
           const isSelected = selectedIndex === index
 
@@ -63,7 +66,11 @@ export function AvatarGrid({ avatars, selectedIndex, onSelect, voice, onVoiceCha
         })}
       </motion.div>
 
-      <VoiceSettings voice={voice} onVoiceChange={onVoiceChange} />
+      <VoiceSettings
+        voice={voice}
+        onVoiceChange={onVoiceChange}
+        options={avatars.map((a) => a.tag || a.name)}
+      />
     </motion.section>
   )
 }

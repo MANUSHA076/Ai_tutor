@@ -13,7 +13,10 @@ export function UploadPage({
   pageEnd,
   onPageStart,
   onPageEnd,
-  onBrowse,
+  onFileSelect,
+  uploading,
+  uploadError,
+  onRefreshUploads,
   recentUploads,
 }) {
   return (
@@ -30,7 +33,11 @@ export function UploadPage({
 
       <div className="upload-page-grid">
         <div className="upload-main">
-          <DocumentUploadZone onBrowse={onBrowse} />
+          <DocumentUploadZone
+            onFileSelect={onFileSelect}
+            uploading={uploading}
+            uploadError={uploadError}
+          />
           <ExtractionSettings
             options={extractionOptions}
             onToggle={onToggleExtraction}
@@ -43,7 +50,7 @@ export function UploadPage({
 
         <aside className="upload-sidebar">
           <StorageCard />
-          <RecentUploads uploads={recentUploads} />
+          <RecentUploads uploads={recentUploads} onRefresh={onRefreshUploads} />
         </aside>
       </div>
     </div>

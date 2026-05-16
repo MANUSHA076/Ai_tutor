@@ -1,6 +1,4 @@
-import { useState } from 'react'
-import { avatars } from './data/avatars'
-import { voiceOptions } from './data/voiceOptions'
+import { useEffect, useState } from 'react'
 import { extractionDefaults } from './components/upload/ExtractionSettings'
 import { AppShell } from './layouts/AppShell'
 import { HomePage } from './pages/HomePage'
@@ -9,13 +7,8 @@ import { LecturesPage } from './pages/LecturesPage'
 import { StudioPage } from './pages/StudioPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { useDocuments } from './hooks/useDocuments'
-// BACKEND [Python]: Home dashboard — POST upload, GET session (see src/api/homeApi.js, documentsApi.js)
+import { useHomeSession } from './hooks/useHomeSession'
 import './App.css'
-
-const defaultFile = {
-  name: 'Quantum_Physics_Intro.pdf',
-  size: '1.5 MB',
-}
 
 const pageConfig = {
   home: { searchPlaceholder: 'Search lectures...', showNewLecture: true },
@@ -27,34 +20,39 @@ const pageConfig = {
 
 function App() {
   const [activeNav, setActiveNav] = useState('home')
-  const [sourceFile, setSourceFile] = useState(defaultFile)
+  const [sourceFile, setSourceFile] = useState(null)
   const [selectedAvatar, setSelectedAvatar] = useState(0)
-  const [voice, setVoice] = useState(voiceOptions[0])
+  const [voice, setVoice] = useState('')
   const [activeTab, setActiveTab] = useState('script')
   const [isPlaying, setIsPlaying] = useState(false)
   const [extractionOptions, setExtractionOptions] = useState(extractionDefaults)
   const [pageStart, setPageStart] = useState('')
   const [pageEnd, setPageEnd] = useState('')
-  const { uploads, uploadFile } = useDocuments()
+
+  const { avatars, sourceFile: sessionFile, reload: reloadHome } = useHomeSession()
+  const { uploads, uploading, uploadError, uploadFile, refreshUploads } = useDocuments()
+
+  useEffect(() => {
+    if (sessionFile && !sourceFile) setSourceFile(sessionFile)
+  }, [sessionFile, sourceFile])
+
+  useEffect(() => {
+    if (avatars.length > 0 && !voice) {
+      setVoice(avatars[0].tag || avatars[0].name)
+    }
+  }, [avatars, voice])
 
   const config = pageConfig[activeNav] ?? pageConfig.home
 
-  // BACKEND [Python]: POST /api/documents/upload — mock until real file input wired
-  const handleUpload = async () => {
-    try {
-      const mockFile = new File([''], `Lecture_${Date.now()}.pdf`, { type: 'application/pdf' })
-      const result = await uploadFile(mockFile, {
-        pageStart,
-        pageEnd,
-        extraction: extractionOptions,
-      })
-      setSourceFile({ name: result.name, size: result.size })
-    } catch {
-      setSourceFile({
-        name: `Lecture_${Date.now().toString().slice(-4)}.pdf`,
-        size: `${(Math.random() * 2 + 0.8).toFixed(1)} MB`,
-      })
-    }
+  const handleFileUpload = async (file) => {
+    const result = await uploadFile(file, {
+      pageStart,
+      pageEnd,
+      extraction: extractionOptions,
+    })
+    setSourceFile({ name: result.name, size: result.size })
+    reloadHome()
+    return result
   }
 
   const handleToggleExtraction = (id) => {
@@ -79,7 +77,10 @@ function App() {
           pageEnd={pageEnd}
           onPageStart={setPageStart}
           onPageEnd={setPageEnd}
-          onBrowse={handleUpload}
+          onFileSelect={handleFileUpload}
+          uploading={uploading}
+          uploadError={uploadError}
+          onRefreshUploads={refreshUploads}
           recentUploads={uploads}
         />
       )
@@ -94,7 +95,6 @@ function App() {
       )
     }
 
-    // BACKEND [Python]: PUT /api/avatars/profile — Studio save
     if (activeNav === 'studio') {
       return <StudioPage onApplyToLecture={() => setActiveNav('home')} />
     }
@@ -103,11 +103,12 @@ function App() {
       return <SettingsPage />
     }
 
-    // BACKEND [Python]: GET /api/home/session, GET /api/home/script
     return (
       <HomePage
         sourceFile={sourceFile}
-        onUpload={handleUpload}
+        onFileSelect={handleFileUpload}
+        uploading={uploading}
+        uploadError={uploadError}
         onRemoveFile={() => setSourceFile(null)}
         isPlaying={isPlaying}
         onTogglePlay={() => setIsPlaying((prev) => !prev)}
@@ -129,7 +130,7 @@ function App() {
       onNewSession={handleNewSession}
       searchPlaceholder={config.searchPlaceholder}
       showNewLecture={config.showNewLecture}
-      onNewLecture={handleUpload}
+      onNewLecture={() => setActiveNav('upload')}
     >
       {renderPage()}
     </AppShell>

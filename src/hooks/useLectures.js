@@ -1,45 +1,37 @@
-import { useEffect, useMemo, useState } from 'react'
-import { lectures as mockLectures } from '../data/lectures'
-// BACKEND [Python]: Connect My Lectures page
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchLectures } from '../api/lecturesApi'
 
 const PER_PAGE = 5
 
 export function useLectures() {
-  const [lectures, setLectures] = useState(mockLectures)
+  const [lectures, setLectures] = useState([])
   const [subject, setSubject] = useState('All')
   const [dateSort, setDateSort] = useState('newest')
   const [currentPage, setCurrentPage] = useState(1)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  // BACKEND [Python]: GET /api/lectures — load on mount & when filters change
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
-      setLoading(true)
-      try {
-        const data = await fetchLectures({
-          subject,
-          sort: dateSort,
-          page: currentPage,
-        })
-        if (!cancelled && Array.isArray(data?.items)) {
-          setLectures(data.items)
-        }
-      } catch {
-        // Fallback to mock data when backend is offline
-        if (!cancelled) setLectures(mockLectures)
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const data = await fetchLectures({
+        subject,
+        sort: dateSort,
+        page: currentPage,
+      })
+      setLectures(Array.isArray(data?.items) ? data.items : [])
+    } catch (err) {
+      setLectures([])
+      setError(err?.message || 'Could not load lectures')
+    } finally {
+      setLoading(false)
     }
   }, [subject, dateSort, currentPage])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const filtered = useMemo(() => {
     let list = [...lectures]
@@ -69,6 +61,8 @@ export function useLectures() {
     dateSort,
     currentPage,
     loading,
+    error,
+    reload: load,
     setSubject: (value) => {
       setSubject(value)
       setCurrentPage(1)

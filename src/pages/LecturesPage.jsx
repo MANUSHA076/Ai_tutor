@@ -1,10 +1,10 @@
 import { motion } from 'framer-motion'
+import { Loader2 } from 'lucide-react'
 import { LectureCard } from '../components/lectures/LectureCard'
 import { GenerateLectureCard } from '../components/lectures/GenerateLectureCard'
 import { LecturesFilters } from '../components/lectures/LecturesFilters'
 import { LecturesPagination } from '../components/lectures/LecturesPagination'
 import { useLectures } from '../hooks/useLectures'
-// BACKEND [Python]: generateLecture() from src/api/lecturesApi.js — Generate New Lecture card
 import { generateLecture } from '../api/lecturesApi'
 
 export function LecturesPage({ onGenerate, onViewLecture }) {
@@ -15,19 +15,21 @@ export function LecturesPage({ onGenerate, onViewLecture }) {
     subject,
     dateSort,
     currentPage,
+    loading,
+    error,
+    reload,
     setSubject,
     setDateSort,
     setCurrentPage,
   } = useLectures()
 
   const handleGenerate = async () => {
-  // BACKEND [Python]: POST /api/lectures/generate
     try {
-      await generateLecture({ subject })
+      await generateLecture({ subject: subject === 'All' ? 'General' : subject })
+      await reload()
     } catch {
-      /* fallback */
+      /* show error via empty state */
     }
-    onGenerate()
   }
 
   return (
@@ -51,17 +53,30 @@ export function LecturesPage({ onGenerate, onViewLecture }) {
         />
       </header>
 
-      <motion.div className="lectures-grid">
-        {paginated.map((lecture, index) => (
-          <LectureCard
-            key={lecture.id}
-            lecture={lecture}
-            index={index}
-            onView={onViewLecture}
-          />
-        ))}
-        <GenerateLectureCard onGenerate={handleGenerate} index={paginated.length} />
-      </motion.div>
+      {error && <p className="data-empty-msg data-error-msg">{error}</p>}
+
+      {loading ? (
+        <p className="data-empty-msg">
+          <Loader2 className="icon-sm spin-icon" /> Loading lectures…
+        </p>
+      ) : (
+        <motion.div className="lectures-grid">
+          {paginated.map((lecture, index) => (
+            <LectureCard
+              key={lecture.id}
+              lecture={lecture}
+              index={index}
+              onView={onViewLecture}
+            />
+          ))}
+          {paginated.length === 0 && (
+            <p className="data-empty-msg lectures-empty-inline">
+              No lectures yet. Add rows in Supabase or click Generate below.
+            </p>
+          )}
+          <GenerateLectureCard onGenerate={handleGenerate} index={paginated.length} />
+        </motion.div>
+      )}
 
       {totalPages > 1 && (
         <LecturesPagination

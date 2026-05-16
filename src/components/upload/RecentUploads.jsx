@@ -13,7 +13,7 @@ const statusClass = {
   failed: 'status-failed',
 }
 
-export function RecentUploads({ uploads }) {
+export function RecentUploads({ uploads, onRefresh }) {
   return (
     <motion.section
       className="upload-page-card recent-card"
@@ -27,6 +27,7 @@ export function RecentUploads({ uploads }) {
           type="button"
           className="refresh-btn"
           aria-label="Refresh"
+          onClick={onRefresh}
           whileHover={{ rotate: 180 }}
           transition={{ duration: 0.4 }}
         >
@@ -35,6 +36,9 @@ export function RecentUploads({ uploads }) {
       </div>
 
       <ul className="recent-list">
+        {uploads.length === 0 && (
+          <li className="data-empty-msg">No uploads yet. Upload a PDF to get started.</li>
+        )}
         {uploads.map((file, index) => {
           const Icon = statusIcon[file.status]
 

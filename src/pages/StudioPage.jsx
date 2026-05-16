@@ -1,29 +1,38 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { backgrounds, baseAvatars, voiceTones } from '../data/studioConfig'
+import { Loader2 } from 'lucide-react'
 import { AvatarPreviewPanel } from '../components/studio/AvatarPreviewPanel'
 import { StudioConfigPanel } from '../components/studio/StudioConfigPanel'
 import { BaseAvatarsGrid } from '../components/studio/BaseAvatarsGrid'
-import '../styles/studio.css'
-// BACKEND [Python]: saveAvatarProfile, previewAvatar — src/api/avatarsApi.js
+import { useStudioConfig } from '../hooks/useStudioConfig'
 import { previewAvatar, saveAvatarProfile } from '../api/avatarsApi'
+import '../styles/studio.css'
 
 export function StudioPage({ onApplyToLecture }) {
-  const [selectedAvatar, setSelectedAvatar] = useState(2)
+  const { backgrounds, baseAvatars, voiceTones, visualStyles, accents, loading } = useStudioConfig()
+  const [selectedAvatar, setSelectedAvatar] = useState(0)
   const [visualStyle, setVisualStyle] = useState('professional')
-  const [voiceTone, setVoiceTone] = useState(voiceTones[0])
+  const [voiceTone, setVoiceTone] = useState('')
   const [accent, setAccent] = useState('British')
   const [backgroundId, setBackgroundId] = useState('classroom')
   const [isPreviewing, setIsPreviewing] = useState(false)
 
-  const activeAvatar = baseAvatars[selectedAvatar]
+  useEffect(() => {
+    if (voiceTones.length && !voiceTone) setVoiceTone(voiceTones[0])
+    if (accents.length && !accents.includes(accent)) setAccent(accents[0])
+    if (backgrounds.length && !backgrounds.find((b) => b.id === backgroundId)) {
+      setBackgroundId(backgrounds[0].id)
+    }
+  }, [voiceTones, accents, backgrounds, voiceTone, accent, backgroundId])
+
+  const activeAvatar = baseAvatars[selectedAvatar] ?? baseAvatars[0]
   const activeBackground = useMemo(
     () => backgrounds.find((bg) => bg.id === backgroundId) ?? backgrounds[0],
-    [backgroundId],
+    [backgrounds, backgroundId],
   )
 
-  // BACKEND [Python]: PUT /api/avatars/profile — Save AI Tutor Profile button
   const handleSave = async () => {
+    if (!activeAvatar) return
     try {
       await saveAvatarProfile({
         avatarId: activeAvatar.id,
@@ -38,8 +47,8 @@ export function StudioPage({ onApplyToLecture }) {
     onApplyToLecture?.()
   }
 
-  // BACKEND [Python]: POST /api/avatars/preview — Preview Voice button
   const handleTogglePreview = async () => {
+    if (!activeAvatar) return
     const next = !isPreviewing
     setIsPreviewing(next)
     if (next) {
@@ -49,6 +58,22 @@ export function StudioPage({ onApplyToLecture }) {
         /* preview offline */
       }
     }
+  }
+
+  if (loading) {
+    return (
+      <p className="data-empty-msg studio-loading">
+        <Loader2 className="icon-sm spin-icon" /> Loading studio…
+      </p>
+    )
+  }
+
+  if (!baseAvatars.length) {
+    return (
+      <p className="data-empty-msg">
+        Studio config could not be loaded. Check that the backend is running.
+      </p>
+    )
   }
 
   return (
@@ -77,6 +102,10 @@ export function StudioPage({ onApplyToLecture }) {
         />
 
         <StudioConfigPanel
+          visualStyles={visualStyles}
+          voiceTones={voiceTones}
+          accents={accents}
+          backgrounds={backgrounds}
           visualStyle={visualStyle}
           onVisualStyleChange={setVisualStyle}
           voiceTone={voiceTone}
@@ -94,6 +123,6 @@ export function StudioPage({ onApplyToLecture }) {
         selectedIndex={selectedAvatar}
         onSelect={setSelectedAvatar}
       />
-    </div>
+    </motion.div>
   )
 }

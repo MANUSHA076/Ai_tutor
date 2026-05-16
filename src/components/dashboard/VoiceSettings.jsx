@@ -1,8 +1,6 @@
 import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
-import { voiceOptions } from '../../data/voiceOptions'
-
-export function VoiceSettings({ voice, onVoiceChange }) {
+export function VoiceSettings({ voice, onVoiceChange, options = [] }) {
   return (
     <motion.div
       className="voice-settings"
@@ -18,7 +16,7 @@ export function VoiceSettings({ voice, onVoiceChange }) {
           onChange={(event) => onVoiceChange(event.target.value)}
           className="voice-select"
         >
-          {voiceOptions.map((option) => (
+          {options.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>

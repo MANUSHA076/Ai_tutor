@@ -8,7 +8,9 @@ import { ScriptPanel } from '../components/dashboard/ScriptPanel'
 
 export function HomePage({
   sourceFile,
-  onUpload,
+  onFileSelect,
+  uploading,
+  uploadError,
   onRemoveFile,
   isPlaying,
   onTogglePlay,
@@ -28,7 +30,13 @@ export function HomePage({
       transition={{ duration: 0.35, delay: 0.05 }}
     >
       <div className="grid-left">
-        <SourceDocument file={sourceFile} onUpload={onUpload} onRemove={onRemoveFile} />
+        <SourceDocument
+          file={sourceFile}
+          onFileSelect={onFileSelect}
+          uploading={uploading}
+          uploadError={uploadError}
+          onRemove={onRemoveFile}
+        />
         <AvatarGrid
           avatars={avatars}
           selectedIndex={selectedAvatar}

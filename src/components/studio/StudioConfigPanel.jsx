@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion'
 import { Check, CheckCircle2, ChevronDown } from 'lucide-react'
-import { accents, backgrounds, visualStyles, voiceTones } from '../../data/studioConfig'
-
 export function StudioConfigPanel({
+  visualStyles = [],
+  voiceTones = [],
+  accents = [],
+  backgrounds = [],
   visualStyle,
   onVisualStyleChange,
   voiceTone,

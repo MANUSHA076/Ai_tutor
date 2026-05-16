@@ -16,6 +16,7 @@ from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadF
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from upload_storage import latest_local_document, list_local_documents, save_pdf
 
@@ -59,9 +60,39 @@ def _load_env_on_startup() -> None:
 # Background ML jobs — avoids blocking other API calls (upload, session, script)
 _pipeline_jobs: dict[str, dict] = {}
 
+_cors_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+_vercel_url = env("VERCEL_URL", "").strip()
+if _vercel_url:
+    _cors_origins.append(f"https://{_vercel_url}")
+_frontend_url = env("FRONTEND_URL", "").strip()
+if _frontend_url:
+    _cors_origins.append(_frontend_url.rstrip("/"))
+
+
+class _StripRoutePrefixMiddleware(BaseHTTPMiddleware):
+    """Vercel Services: requests arrive as /_/backend/api/... — strip to /api/..."""
+
+    def __init__(self, app, prefix: str):
+        super().__init__(app)
+        self.prefix = prefix.rstrip("/")
+
+    async def dispatch(self, request, call_next):
+        path = request.scope.get("path") or ""
+        if path == self.prefix or path.startswith(f"{self.prefix}/"):
+            request.scope["path"] = path[len(self.prefix) :] or "/"
+        return await call_next(request)
+
+
+_route_prefix = env("BACKEND_ROUTE_PREFIX", "/_/backend").strip() or "/_/backend"
+if env("VERCEL") or env("BACKEND_ROUTE_PREFIX"):
+    app.add_middleware(_StripRoutePrefixMiddleware, prefix=_route_prefix)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

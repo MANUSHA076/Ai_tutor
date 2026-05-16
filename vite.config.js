@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  envPrefix: ['VITE_', 'NEXT_PUBLIC_'],
   server: {
     // Proxy frontend /api/* → Python FastAPI (uvicorn main:app --port 8000)
     proxy: {

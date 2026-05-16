@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { Sidebar } from '../components/layout/Sidebar'
+import { Sidebar } from '../components/layout/sidebar'
 import { TopBar } from '../components/layout/TopBar'
 
 const pageTransition = {

@@ -6,6 +6,7 @@ import { extractionDefaults } from './components/upload/ExtractionSettings'
 import { AppShell } from './layouts/AppShell'
 import { HomePage } from './pages/HomePage'
 import { UploadPage } from './pages/UploadPage'
+import { LecturesPage } from './pages/LecturesPage'
 import './App.css'
 
 const defaultFile = {
@@ -66,6 +67,15 @@ function App() {
           onPageEnd={setPageEnd}
           onBrowse={handleUpload}
           recentUploads={uploads}
+        />
+      )
+    }
+
+    if (activeNav === 'lectures') {
+      return (
+        <LecturesPage
+          onGenerate={handleNewSession}
+          onViewLecture={() => setActiveNav('home')}
         />
       )
     }

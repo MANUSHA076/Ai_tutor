@@ -15,12 +15,15 @@ export function ScriptPanel({
   canRagTts = false,
   ragTtsLoading = false,
   onGenerateRagTts,
+  onGenerateFromSummary,
   onGenerateAudioOnly,
   audioPrompt = '',
   ragTtsError = '',
   hasAudio = false,
 }) {
   const { lines, summary, loading } = useLectureScript(activeTab, ragSource)
+  const { summary: notesSummary } = useLectureScript('notes', ragSource)
+  const summaryForVideo = notesSummary.length > 0 ? notesSummary : summary
 
   return (
     <motion.section
@@ -75,7 +78,25 @@ export function ScriptPanel({
                 <Loader2 className="icon-sm spin-icon" /> Generating script + video…
               </>
             ) : (
-              'Generate lecture (RAG → Video)'
+              'Generate lecture (PDF → Video)'
+            )}
+          </motion.button>
+        )}
+        {(summaryForVideo.length > 0 || ragSource) && onGenerateFromSummary && (
+          <motion.button
+            type="button"
+            className="rag-tts-btn rag-tts-btn-summary"
+            disabled={ragTtsLoading || !ragSource}
+            onClick={() => onGenerateFromSummary(summaryForVideo)}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            {ragTtsLoading && activeTab === 'notes' ? (
+              <>
+                <Loader2 className="icon-sm spin-icon" /> Summary → video…
+              </>
+            ) : (
+              'Summary → Video'
             )}
           </motion.button>
         )}
@@ -153,7 +174,11 @@ export function ScriptPanel({
                 transition={{ duration: 0.25 }}
               >
                 {summary.length === 0 ? (
-                  <li className="data-empty-msg">No lecture notes yet. Add a description to your latest lecture.</li>
+                  <li className="data-empty-msg">
+                    {ragSource
+                      ? 'Summary loading… Upload finished? Wait for “Indexed” above, then click Summary → Video.'
+                      : 'Upload a PDF first. Summary appears here after indexing.'}
+                  </li>
                 ) : (
                   summary.map((note, index) => (
                     <motion.li

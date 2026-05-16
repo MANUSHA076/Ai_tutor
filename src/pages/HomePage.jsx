@@ -32,6 +32,7 @@ export function HomePage({
   ragTtsError = '',
   audioPrompt = '',
   onGenerateRagTts,
+  onGenerateFromSummary,
   videoUrl = '',
   audioUrl = '',
   audioLoading = false,
@@ -134,6 +135,7 @@ export function HomePage({
             ragTtsError={ragTtsError}
             audioPrompt={audioPrompt}
             onGenerateRagTts={onGenerateRagTts}
+            onGenerateFromSummary={onGenerateFromSummary}
             onGenerateAudioOnly={onGenerateAudioOnly}
             hasAudio={Boolean(videoUrl || audioUrl)}
           />

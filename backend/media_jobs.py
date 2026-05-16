@@ -72,17 +72,23 @@ def run_media_job(job_id: str, body: Any) -> None:
         if not script:
             raise ValueError("No script text to synthesize")
 
-        _update(
-            job_id,
-            step="fal",
-            message="Fal: speech + video (usually 3–8 min)…",
-        )
-        media = generate_lecture_media(script, fal_opts)
+        def on_audio_ready(url: str) -> None:
+            _update(
+                job_id,
+                status="running",
+                step="video",
+                message="Audio ready — encoding video (1–4 min)…",
+                audio_url=url,
+                script=script,
+            )
+
+        _update(job_id, step="speech", message="Generating speech (fast)…")
+        media = generate_lecture_media(script, fal_opts, on_audio_ready=on_audio_ready)
         _update(
             job_id,
             status="completed",
             step="done",
-            message="Video ready",
+            message="Video ready — press Play",
             video_url=media.get("video_url"),
             audio_url=media.get("audio_url") or media.get("video_url"),
             script=script,

@@ -11,10 +11,14 @@ import { useHomeSession } from './hooks/useHomeSession'
 import { usePipeline } from './hooks/usePipeline'
 import { formatFileSize } from './utils/formatFileSize'
 import { generateLectureAudio } from './api/lectureApi'
+import { fetchLectureScript } from './api/homeApi'
 import './App.css'
 
 const DEFAULT_RAG_TTS_MESSAGE =
   'Summarize this document and write a clear lecture script suitable for text-to-speech.'
+
+const SUMMARY_TO_VIDEO_MESSAGE =
+  'Using the lecture notes summary, write a fluent spoken lecture script for an educational video (about 2–4 minutes). Plain language, no markdown.'
 
 const pageConfig = {
   home: { searchPlaceholder: 'Search lectures...', showNewLecture: true },
@@ -179,23 +183,99 @@ function App() {
     [selectedAvatarMeta],
   )
 
+  const applyJobProgress = useCallback((job) => {
+    if (job?.message || job?.step) {
+      setGenMessage(job.message || job.step)
+    }
+    if (job?.script) {
+      setAudioPrompt(job.script)
+    }
+    if (job?.video_url) {
+      setVideoUrl(job.video_url)
+      if (job.audio_url) setAudioUrl(job.audio_url)
+    } else if (job?.audio_url) {
+      setAudioUrl(job.audio_url)
+    }
+  }, [])
+
   const applyMediaResult = useCallback((data, fallbackScript = '') => {
     const script = data?.script || fallbackScript
     if (script) setAudioPrompt(script)
     if (data?.video_url) {
       setVideoUrl(data.video_url)
       setAudioUrl(data.audio_url || '')
-      setIsPlaying(false)
+      setIsPlaying(true)
       return true
     }
     if (data?.audio_url) {
       setVideoUrl('')
       setAudioUrl(data.audio_url)
-      setIsPlaying(false)
+      setIsPlaying(true)
       return true
     }
     return false
   }, [])
+
+  const handleGenerateFromSummary = useCallback(
+    async (summaryLines) => {
+      let summaryText = Array.isArray(summaryLines)
+        ? summaryLines.filter(Boolean).join('\n\n').trim()
+        : ''
+      const indexed = Boolean(ragSource)
+      const storagePath = sourceFile?.storage_path || null
+
+      if (!summaryText && indexed) {
+        try {
+          const data = await fetchLectureScript('notes', { source: ragSource })
+          summaryText = (data?.summary || []).filter(Boolean).join('\n\n').trim()
+        } catch {
+          /* use backend from_summary + source */
+        }
+      }
+
+      if (!summaryText && !storagePath && !indexed) {
+        setRagTtsError('Upload a PDF and wait for “Indexed” before Summary → Video.')
+        return
+      }
+
+      setRagTtsLoading(true)
+      setRagTtsError('')
+      setAudioError('')
+      setVideoUrl('')
+      setAudioUrl('')
+      setGenMessage('Summary → script → video…')
+      setActiveTab('notes')
+
+      try {
+        const data = await generateLectureAudio(
+          {
+            storagePath,
+            summaryText: summaryText || null,
+            fromSummary: true,
+            source: ragSource || null,
+            textMessage: SUMMARY_TO_VIDEO_MESSAGE,
+            ...falLectureOptions(),
+          },
+          applyJobProgress,
+        )
+        if (!applyMediaResult(data)) {
+          setRagTtsError('No video/audio URL returned. Check FAL_KEY in backend/.env')
+        }
+      } catch (err) {
+        setRagTtsError(err?.message || 'Summary video generation failed')
+      } finally {
+        setRagTtsLoading(false)
+        setGenMessage('')
+      }
+    },
+    [
+      sourceFile?.storage_path,
+      ragSource,
+      falLectureOptions,
+      applyJobProgress,
+      applyMediaResult,
+    ],
+  )
 
   const handleGenerateRagTts = useCallback(async () => {
     if (!sourceFile?.storage_path) {
@@ -206,14 +286,19 @@ function App() {
     setRagTtsError('')
     setAudioError('')
     setVideoUrl('')
+    setAudioUrl('')
+    setGenMessage('Starting…')
     try {
-      const data = await generateLectureAudio({
-        storagePath: audioPrompt ? null : sourceFile.storage_path,
-        textMessage: DEFAULT_RAG_TTS_MESSAGE,
-        scriptText: audioPrompt || null,
-        source: ragSource || null,
-        ...falLectureOptions(),
-      })
+      const data = await generateLectureAudio(
+        {
+          storagePath: audioPrompt ? null : sourceFile.storage_path,
+          textMessage: DEFAULT_RAG_TTS_MESSAGE,
+          scriptText: audioPrompt || null,
+          source: ragSource || null,
+          ...falLectureOptions(),
+        },
+        applyJobProgress,
+      )
       if (!applyMediaResult(data)) {
         setRagTtsError('No video/audio URL returned. Check FAL_KEY and FAL_DEFAULT_AVATAR_URL in backend/.env')
       }
@@ -223,7 +308,7 @@ function App() {
       setRagTtsLoading(false)
       setGenMessage('')
     }
-  }, [sourceFile?.storage_path, audioPrompt, ragSource, falLectureOptions, applyMediaResult])
+  }, [sourceFile?.storage_path, audioPrompt, ragSource, falLectureOptions, applyJobProgress, applyMediaResult])
 
   const handleTestGenerate = useCallback(async () => {
     const text = testText.trim()
@@ -252,7 +337,7 @@ function App() {
       setTestLoading(false)
       setGenMessage('')
     }
-  }, [testText, falLectureOptions, applyMediaResult])
+  }, [testText, falLectureOptions, applyJobProgress, applyMediaResult])
 
   const handleGenerateAudioOnly = useCallback(async () => {
     const script = audioPrompt?.trim()
@@ -271,7 +356,7 @@ function App() {
           source: ragSource || null,
           ...falLectureOptions(),
         },
-        (job) => setGenMessage(job.message || job.step || 'Processing…'),
+        applyJobProgress,
       )
       if (!applyMediaResult(data)) {
         setAudioError('No video/audio URL returned. Check FAL_KEY in backend/.env')
@@ -282,7 +367,7 @@ function App() {
       setAudioLoading(false)
       setGenMessage('')
     }
-  }, [audioPrompt, ragSource, falLectureOptions, applyMediaResult])
+  }, [audioPrompt, ragSource, falLectureOptions, applyJobProgress, applyMediaResult])
 
   const handleToggleExtraction = (id) => {
     setExtractionOptions((prev) =>
@@ -358,11 +443,12 @@ function App() {
         processing={processing || indexing}
         backendOffline={offline}
         sessionError={sessionError}
-        canRagTts={Boolean(sourceFile?.storage_path)}
+        canRagTts={Boolean(sourceFile?.storage_path || ragSource)}
         ragTtsLoading={ragTtsLoading}
         ragTtsError={ragTtsError}
         audioPrompt={audioPrompt}
         onGenerateRagTts={handleGenerateRagTts}
+        onGenerateFromSummary={handleGenerateFromSummary}
         onGenerateAudioOnly={handleGenerateAudioOnly}
         videoUrl={videoUrl}
         audioUrl={audioUrl}

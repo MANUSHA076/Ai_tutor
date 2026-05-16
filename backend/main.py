@@ -53,6 +53,8 @@ def _load_env_on_startup() -> None:
     else:
         print("[EduAI] WARNING: FAL_KEY missing — add it to backend/.env and restart")
     print("[EduAI] Media API: POST /api/lecture/generate-audio/async + job polling")
+    grok_ok = bool((env("XAI_API_KEY") or env("GROK_API_KEY")).strip())
+    print(f"[EduAI] Script provider: {env('SCRIPT_PROVIDER', 'auto')} | Grok: {'yes' if grok_ok else 'no (add XAI_API_KEY)'}")
 
 # Background ML jobs — avoids blocking other API calls (upload, session, script)
 _pipeline_jobs: dict[str, dict] = {}
@@ -139,6 +141,8 @@ def health():
         "fal_configured": fal_key_configured(),
         "fal_mode": env("FAL_MODE", "auto"),
         "fal_workflow": env("FAL_WORKFLOW", "workflows/nsjayawardanaofficial/text2audio2video"),
+        "script_provider": env("SCRIPT_PROVIDER", "auto"),
+        "grok_configured": bool((env("XAI_API_KEY") or env("GROK_API_KEY")).strip()),
         "env_file": str(env_config._ENV_FILE),
     }
 
@@ -582,6 +586,14 @@ class GenerateLectureAudioBody(BaseModel):
         default="Summarize this document and write a clear lecture script for text-to-speech.",
     )
     script_text: str | None = Field(None, description="Skip RAG if script already generated")
+    summary_text: str | None = Field(
+        None,
+        description="Lecture notes summary bullets → spoken script (Grok) → video",
+    )
+    from_summary: bool = Field(
+        False,
+        description="Use notes-tab summary from indexed source (Summary → Video)",
+    )
     source: str | None = Field(None, description="Indexed PDF stem — build script from local chunks")
     avatar_id: str | None = Field(None, description="Avatar id from /api/home/session avatars")
     voice: str | None = Field(None, description="Fal workflow voice, e.g. Sarah")
@@ -611,12 +623,32 @@ def _run_process_job(storage_path: str, threshold: float, min_chars: int) -> Non
     source_name = Path(storage_path).stem
     _pipeline_jobs[source_name] = {"status": "processing", "storage_path": storage_path}
     try:
-        from pipeline.service import process_pdf
+        from pipeline.service import is_network_error, process_pdf, process_pdf_light
 
-        result = process_pdf(storage_path, threshold=threshold, min_chars=min_chars)
+        try:
+            result = process_pdf(storage_path, threshold=threshold, min_chars=min_chars)
+        except Exception as exc:
+            if is_network_error(exc):
+                result = process_pdf_light(
+                    storage_path,
+                    threshold=threshold,
+                    min_chars=min_chars,
+                )
+                result["warning"] = (
+                    "Light indexing (offline) — HuggingFace unreachable. "
+                    "Video/text still work; full RAG search needs internet + .\\install-ml.ps1"
+                )
+            else:
+                raise
         _pipeline_jobs[source_name] = {"status": "ready", **result}
     except Exception as exc:
-        _pipeline_jobs[source_name] = {"status": "failed", "error": str(exc)}
+        err = str(exc)
+        if "getaddrinfo" in err.lower() or "11001" in err:
+            err = (
+                "Network/DNS error while indexing. Check internet, VPN, or set "
+                "RAG_INDEX_MODE=light in backend/.env"
+            )
+        _pipeline_jobs[source_name] = {"status": "failed", "error": err}
 
 
 async def _schedule_process_job(storage_path: str, threshold: float, min_chars: int) -> None:
@@ -776,10 +808,15 @@ async def generate_lecture_audio_async(body: GenerateLectureAudioBody):
     """Start background Fal job — poll GET /jobs/{id} (no 300s browser timeout)."""
     from media_jobs import start_media_job
 
-    if not (body.script_text or "").strip() and not body.storage_path and not body.source:
+    if (
+        not (body.script_text or "").strip()
+        and not (body.summary_text or "").strip()
+        and not body.storage_path
+        and not body.source
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Provide script_text, storage_path, or source",
+            detail="Provide script_text, summary_text, storage_path, or source",
         )
     job_id = start_media_job(body)
     return {"job_id": job_id, "status": "running"}

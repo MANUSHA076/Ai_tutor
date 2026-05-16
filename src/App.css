@@ -474,6 +474,11 @@
   color: #c4b5fd;
 }
 
+.rag-tts-btn-summary {
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.25), rgba(34, 211, 238, 0.2));
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
 .rag-tts-btn-secondary {
   border-color: rgba(125, 211, 252, 0.35);
   background: rgba(34, 211, 238, 0.08);
@@ -522,6 +527,20 @@
   color: rgba(148, 163, 184, 0.75);
   text-align: center;
   max-width: 280px;
+}
+
+.video-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  justify-content: center;
+  background: rgba(8, 20, 38, 0.72);
+  backdrop-filter: blur(4px);
+  border-radius: 12px;
+}
+
+.progress-wrap-seek {
+  cursor: pointer;
 }
 
 .video-error {

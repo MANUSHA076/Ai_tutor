@@ -1,6 +1,6 @@
 import { apiGet, apiPost } from './client'
 
-const POLL_MS = 2500
+const POLL_MS = 1500
 const MAX_POLL_MS = 12 * 60 * 1000
 const SYNC_TIMEOUT_MS = 600000
 
@@ -14,6 +14,8 @@ function buildBody({
   storagePath,
   textMessage,
   scriptText,
+  summaryText,
+  fromSummary,
   avatarId,
   voice,
   avatarUrl,
@@ -25,6 +27,8 @@ function buildBody({
     storage_path: storagePath || null,
     text_message: textMessage,
     script_text: scriptText || null,
+    summary_text: summaryText || null,
+    from_summary: Boolean(fromSummary),
     source: source || null,
     avatar_id: avatarId || null,
     voice: voice || null,

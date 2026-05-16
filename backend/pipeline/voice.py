@@ -43,6 +43,15 @@ def _workflow_id() -> str:
     return _env("FAL_WORKFLOW", DEFAULT_WORKFLOW) or DEFAULT_WORKFLOW
 
 
+def _friendly_network_error(exc: BaseException) -> str:
+    msg = str(exc)
+    if "getaddrinfo" in msg.lower() or "11001" in msg or "name or service not known" in msg.lower():
+        return (
+            "Cannot reach Fal.ai (DNS/network). Check internet connection and VPN, then retry."
+        )
+    return msg
+
+
 def _ensure_fal_key() -> str:
     from env_config import ensure_env_loaded
 
@@ -61,8 +70,11 @@ def _fal_submit(app_id: str, arguments: dict[str, Any]) -> Any:
     timeout = _fal_timeout_seconds()
 
     def run() -> Any:
-        handler = fal_client.submit(app_id, arguments=arguments)
-        return handler.get()
+        try:
+            handler = fal_client.submit(app_id, arguments=arguments)
+            return handler.get()
+        except OSError as exc:
+            raise OSError(_friendly_network_error(exc)) from exc
 
     logger.info("Fal request start: %s", app_id)
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
@@ -76,6 +88,8 @@ def _fal_submit(app_id: str, arguments: dict[str, Any]) -> Any:
                 f"Fal timed out after {timeout}s ({app_id}). "
                 "Try shorter text or increase FAL_TIMEOUT_SECONDS in backend/.env"
             ) from exc
+        except OSError as exc:
+            raise OSError(_friendly_network_error(exc)) from exc
 
 
 def _is_workflow_not_found(exc: BaseException) -> bool:
@@ -169,6 +183,13 @@ def _run_custom_workflow(
     return {"video_url": video_url, "audio_url": audio_url, "source": workflow}
 
 
+def _max_script_chars() -> int:
+    try:
+        return max(500, int(_env("FAL_MAX_SCRIPT_CHARS", "2500")))
+    except ValueError:
+        return 2500
+
+
 def _run_public_pipeline(
     prompt: str,
     *,
@@ -176,14 +197,16 @@ def _run_public_pipeline(
     avatar_url: str,
     video_prompt: str,
     apply_text_normalization: str,
+    on_audio_ready=None,
 ) -> dict[str, str | None]:
     """TTS (ElevenLabs) → avatar video (Kling). Reliable with any Fal API key."""
     tts_model = _env("FAL_TTS_MODEL", TTS_MODEL)
     video_model = _env("FAL_VIDEO_MODEL", VIDEO_MODEL)
+    text = prompt[: _max_script_chars()]
 
     logger.info("Step 1/2: generating speech (%s)", tts_model)
     tts_args: dict[str, Any] = {
-        "text": prompt[:8000],
+        "text": text,
         "voice": voice or "Rachel",
         "apply_text_normalization": apply_text_normalization or "auto",
     }
@@ -197,6 +220,9 @@ def _run_public_pipeline(
         raise ValueError(
             f"TTS returned no audio. Keys: {list(tts_result.keys()) if isinstance(tts_result, dict) else tts_result}"
         )
+
+    if on_audio_ready:
+        on_audio_ready(audio_url)
 
     logger.info("Step 2/2: generating video (%s)", video_model)
     video_args: dict[str, Any] = {
@@ -228,6 +254,7 @@ def generate_lecture_video(
     timestamps: bool = True,
     language_code_iso: str = "",
     apply_text_normalization: str = "auto",
+    on_audio_ready=None,
 ) -> dict[str, str | None]:
     _ensure_fal_key()
     avatar = _resolve_avatar_url(avatar_url)
@@ -246,6 +273,7 @@ def generate_lecture_video(
             avatar_url=avatar,
             video_prompt=video_hint,
             apply_text_normalization=apply_text_normalization,
+            on_audio_ready=on_audio_ready,
         )
 
     if mode == "workflow":
@@ -281,6 +309,7 @@ def generate_lecture_video(
             avatar_url=WORKING_AVATAR_URL,
             video_prompt=video_hint,
             apply_text_normalization=apply_text_normalization,
+            on_audio_ready=on_audio_ready,
         )
 
 

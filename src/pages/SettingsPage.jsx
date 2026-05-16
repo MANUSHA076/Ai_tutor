@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Save, Shield, Sliders, User } from 'lucide-react'
-import { settingsSections, preferenceToggles, notificationToggles } from '../data/settingsConfig'
+import {
+  settingsSections,
+  preferenceToggles,
+  notificationToggles,
+  privacyToggles,
+} from '../data/settingsConfig'
 import { SettingsAccount } from '../components/settings/SettingsAccount'
 import { SettingsPreferences } from '../components/settings/SettingsPreferences'
 import { SettingsNotifications } from '../components/settings/SettingsNotifications'
@@ -30,6 +35,9 @@ export function SettingsPage() {
   const [notificationTogglesState, setNotificationTogglesState] = useState(() =>
     buildToggleState(notificationToggles, true),
   )
+  const [privacyTogglesState, setPrivacyTogglesState] = useState(() =>
+    buildToggleState(privacyToggles, false),
+  )
   const [saved, setSaved] = useState(false)
 
   const handlePreferenceToggle = (id, value) => {
@@ -38,6 +46,10 @@ export function SettingsPage() {
 
   const handleNotificationToggle = (id, value) => {
     setNotificationTogglesState((prev) => ({ ...prev, [id]: value }))
+  }
+
+  const handlePrivacyToggle = (id, value) => {
+    setPrivacyTogglesState((prev) => ({ ...prev, [id]: value }))
   }
 
   const handleSave = () => {
@@ -75,7 +87,9 @@ export function SettingsPage() {
           />
         )
       case 'privacy':
-        return <SettingsPrivacy />
+        return (
+          <SettingsPrivacy toggles={privacyTogglesState} onToggle={handlePrivacyToggle} />
+        )
       default:
         return null
     }

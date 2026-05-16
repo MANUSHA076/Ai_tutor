@@ -1,13 +1,14 @@
 import { motion } from 'framer-motion'
-import { Download, KeyRound, Shield, Trash2 } from 'lucide-react'
+import { Download, Eye, Lock, Shield } from 'lucide-react'
+import { privacyToggles } from '../../data/settingsConfig'
+import { SettingsToggle } from './SettingsToggle'
 
 const privacyActions = [
-  { id: 'password', label: 'Change Password', desc: 'Update your account password', icon: KeyRound },
-  { id: 'export', label: 'Export My Data', desc: 'Download all your lectures and settings', icon: Download },
+  { id: 'export', label: 'Export My Data', desc: 'Download your lectures and settings', icon: Download },
   { id: 'privacy', label: 'Privacy Policy', desc: 'Read how we handle your data', icon: Shield },
 ]
 
-export function SettingsPrivacy() {
+export function SettingsPrivacy({ toggles, onToggle }) {
   return (
     <motion.div
       className="settings-panel"
@@ -15,7 +16,42 @@ export function SettingsPrivacy() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
     >
-      <p className="settings-panel-desc">Manage your security and data preferences.</p>
+      <motion.div
+        className="settings-privacy-notice"
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05 }}
+      >
+        <Lock className="icon-sm" />
+        <p>Only you can view and change these privacy settings.</p>
+      </motion.div>
+
+      <p className="settings-panel-desc">Control who can see your learning data and profile.</p>
+
+      <motion.div className="settings-toggle-list settings-privacy-toggles">
+        {privacyToggles.map((item, index) => (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.05 }}
+          >
+            <SettingsToggle
+              id={item.id}
+              label={item.label}
+              desc={item.desc}
+              checked={toggles[item.id] ?? item.defaultOn ?? false}
+              onChange={(value) => onToggle(item.id, value)}
+            />
+          </motion.div>
+        ))}
+      </motion.div>
+
+      <div className="settings-privacy-divider" />
+
+      <p className="settings-panel-sublabel">
+        <Eye className="icon-xs" /> Data &amp; documents
+      </p>
 
       <div className="settings-action-list">
         {privacyActions.map((action, index) => {
@@ -27,7 +63,7 @@ export function SettingsPrivacy() {
               className="settings-action-row"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.06 }}
+              transition={{ delay: 0.2 + index * 0.06 }}
               whileHover={{ x: 4, backgroundColor: 'rgba(255,255,255,0.05)' }}
             >
               <span className="settings-action-icon">
@@ -41,24 +77,6 @@ export function SettingsPrivacy() {
           )
         })}
       </div>
-
-      <motion.div
-        className="settings-danger-zone"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        <h4>Danger Zone</h4>
-        <p>Permanently delete your account and all associated data.</p>
-        <motion.button
-          type="button"
-          className="settings-danger-btn"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <Trash2 className="icon-sm" /> Delete Account
-        </motion.button>
-      </motion.div>
     </motion.div>
   )
 }

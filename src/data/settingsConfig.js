@@ -2,7 +2,34 @@ export const settingsSections = [
   { id: 'account', label: 'Account' },
   { id: 'preferences', label: 'Preferences' },
   { id: 'notifications', label: 'Notifications' },
-  { id: 'privacy', label: 'Privacy & Security' },
+  { id: 'privacy', label: 'Privacy' },
+]
+
+export const privacyToggles = [
+  {
+    id: 'privateLectures',
+    label: 'Private lectures only',
+    desc: 'Only you can view your uploaded lectures and AI sessions',
+    defaultOn: true,
+  },
+  {
+    id: 'hideProfile',
+    label: 'Hide profile from others',
+    desc: 'Your name and avatar stay visible only to you',
+    defaultOn: true,
+  },
+  {
+    id: 'hideActivity',
+    label: 'Hide learning activity',
+    desc: 'Progress and study history visible only to you',
+    defaultOn: true,
+  },
+  {
+    id: 'anonymousAnalytics',
+    label: 'Anonymous usage analytics',
+    desc: 'Help improve EduAI without sharing personal data',
+    defaultOn: false,
+  },
 ]
 
 export const languageOptions = ['English', 'Sinhala', 'Tamil', 'Spanish']

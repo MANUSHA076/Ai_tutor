@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { scriptLines, lectureSummary } from '../../data/scriptContent'
+// BACKEND [Python]: fetchLectureScript(tab) — src/api/homeApi.js when tab changes
 
 const tabs = [
   { id: 'script', label: 'Generated Script' },

@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion'
 import { Bell, Plus, Search } from 'lucide-react'
+// BACKEND [Python]: searchKnowledgeBase — src/api/searchApi.js
+// Wire onChange on search input → searchKnowledgeBase(query, scope)
 
 export function TopBar({
   searchPlaceholder = 'Search lectures...',

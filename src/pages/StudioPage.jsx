@@ -5,6 +5,8 @@ import { AvatarPreviewPanel } from '../components/studio/AvatarPreviewPanel'
 import { StudioConfigPanel } from '../components/studio/StudioConfigPanel'
 import { BaseAvatarsGrid } from '../components/studio/BaseAvatarsGrid'
 import '../styles/studio.css'
+// BACKEND [Python]: saveAvatarProfile, previewAvatar — src/api/avatarsApi.js
+import { previewAvatar, saveAvatarProfile } from '../api/avatarsApi'
 
 export function StudioPage({ onApplyToLecture }) {
   const [selectedAvatar, setSelectedAvatar] = useState(2)
@@ -20,8 +22,33 @@ export function StudioPage({ onApplyToLecture }) {
     [backgroundId],
   )
 
-  const handleSave = () => {
+  // BACKEND [Python]: PUT /api/avatars/profile — Save AI Tutor Profile button
+  const handleSave = async () => {
+    try {
+      await saveAvatarProfile({
+        avatarId: activeAvatar.id,
+        visualStyle,
+        voiceTone,
+        accent,
+        backgroundId,
+      })
+    } catch {
+      /* keep local state */
+    }
     onApplyToLecture?.()
+  }
+
+  // BACKEND [Python]: POST /api/avatars/preview — Preview Voice button
+  const handleTogglePreview = async () => {
+    const next = !isPreviewing
+    setIsPreviewing(next)
+    if (next) {
+      try {
+        await previewAvatar({ avatarId: activeAvatar.id, voiceTone, accent })
+      } catch {
+        /* preview offline */
+      }
+    }
   }
 
   return (
@@ -46,7 +73,7 @@ export function StudioPage({ onApplyToLecture }) {
           avatar={activeAvatar}
           background={activeBackground}
           isPreviewing={isPreviewing}
-          onTogglePreview={() => setIsPreviewing((prev) => !prev)}
+          onTogglePreview={handleTogglePreview}
         />
 
         <StudioConfigPanel

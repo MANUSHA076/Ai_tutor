@@ -1,3 +1,5 @@
+// BACKEND [Python]: Mock data — replace with GET /api/lectures (see src/api/lecturesApi.js)
+
 export const subjects = ['All', 'Physics', 'CS', 'Math', 'Biology']
 
 export const subjectFilters = [

@@ -1,3 +1,5 @@
+// BACKEND [Python]: Mock data — replace with GET /api/home/script
+
 export const scriptLines = [
   {
     time: '00:00',

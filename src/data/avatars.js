@@ -1,3 +1,5 @@
+// BACKEND [Python]: Mock data — replace with GET /api/avatars & GET /api/avatars/studio-config
+
 export const avatars = [
   {
     id: 'sarah',

@@ -1,3 +1,5 @@
+// BACKEND [Python]: Mock data — replace with GET /api/avatars/studio-config
+
 export const visualStyles = [
   { id: 'professional', label: 'Professional', desc: 'Formal attire, neutral studio lighting' },
   { id: 'casual', label: 'Casual', desc: 'Relaxed look, friendly classroom vibe' },

@@ -4,6 +4,8 @@ import { VideoPlayer } from '../components/dashboard/VideoPlayer'
 import { AvatarGrid } from '../components/dashboard/AvatarGrid'
 import { ScriptPanel } from '../components/dashboard/ScriptPanel'
 
+// BACKEND [Python]: homeApi + documentsApi — see src/api/homeApi.js, App.jsx
+
 export function HomePage({
   sourceFile,
   onUpload,

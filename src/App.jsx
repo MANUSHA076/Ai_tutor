@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { avatars } from './data/avatars'
-import { recentUploads as initialUploads } from './data/recentUploads'
 import { voiceOptions } from './data/voiceOptions'
 import { extractionDefaults } from './components/upload/ExtractionSettings'
 import { AppShell } from './layouts/AppShell'
@@ -9,6 +8,8 @@ import { UploadPage } from './pages/UploadPage'
 import { LecturesPage } from './pages/LecturesPage'
 import { StudioPage } from './pages/StudioPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { useDocuments } from './hooks/useDocuments'
+// BACKEND [Python]: Home dashboard — POST upload, GET session (see src/api/homeApi.js, documentsApi.js)
 import './App.css'
 
 const defaultFile = {
@@ -30,19 +31,30 @@ function App() {
   const [selectedAvatar, setSelectedAvatar] = useState(0)
   const [voice, setVoice] = useState(voiceOptions[0])
   const [activeTab, setActiveTab] = useState('script')
-  const [isPlaying, setIsPlaying] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [extractionOptions, setExtractionOptions] = useState(extractionDefaults)
   const [pageStart, setPageStart] = useState('')
   const [pageEnd, setPageEnd] = useState('')
-  const [uploads] = useState(initialUploads)
+  const { uploads, uploadFile } = useDocuments()
 
   const config = pageConfig[activeNav] ?? pageConfig.home
 
-  const handleUpload = () => {
-    setSourceFile({
-      name: `Lecture_${Date.now().toString().slice(-4)}.pdf`,
-      size: `${(Math.random() * 2 + 0.8).toFixed(1)} MB`,
-    })
+  // BACKEND [Python]: POST /api/documents/upload — mock until real file input wired
+  const handleUpload = async () => {
+    try {
+      const mockFile = new File([''], `Lecture_${Date.now()}.pdf`, { type: 'application/pdf' })
+      const result = await uploadFile(mockFile, {
+        pageStart,
+        pageEnd,
+        extraction: extractionOptions,
+      })
+      setSourceFile({ name: result.name, size: result.size })
+    } catch {
+      setSourceFile({
+        name: `Lecture_${Date.now().toString().slice(-4)}.pdf`,
+        size: `${(Math.random() * 2 + 0.8).toFixed(1)} MB`,
+      })
+    }
   }
 
   const handleToggleExtraction = (id) => {
@@ -82,6 +94,7 @@ function App() {
       )
     }
 
+    // BACKEND [Python]: PUT /api/avatars/profile — Studio save
     if (activeNav === 'studio') {
       return <StudioPage onApplyToLecture={() => setActiveNav('home')} />
     }
@@ -90,6 +103,7 @@ function App() {
       return <SettingsPage />
     }
 
+    // BACKEND [Python]: GET /api/home/session, GET /api/home/script
     return (
       <HomePage
         sourceFile={sourceFile}

@@ -1,48 +1,33 @@
-import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { lectures as allLectures } from '../data/lectures'
 import { LectureCard } from '../components/lectures/LectureCard'
 import { GenerateLectureCard } from '../components/lectures/GenerateLectureCard'
 import { LecturesFilters } from '../components/lectures/LecturesFilters'
 import { LecturesPagination } from '../components/lectures/LecturesPagination'
-
-const PER_PAGE = 5
+import { useLectures } from '../hooks/useLectures'
+// BACKEND [Python]: generateLecture() from src/api/lecturesApi.js — Generate New Lecture card
+import { generateLecture } from '../api/lecturesApi'
 
 export function LecturesPage({ onGenerate, onViewLecture }) {
-  const [subject, setSubject] = useState('All')
-  const [dateSort, setDateSort] = useState('newest')
-  const [currentPage, setCurrentPage] = useState(1)
+  const {
+    paginated,
+    filteredCount,
+    totalPages,
+    subject,
+    dateSort,
+    currentPage,
+    setSubject,
+    setDateSort,
+    setCurrentPage,
+  } = useLectures()
 
-  const filtered = useMemo(() => {
-    let list = [...allLectures]
-
-    if (subject !== 'All') {
-      list = list.filter((item) => item.subject === subject)
+  const handleGenerate = async () => {
+  // BACKEND [Python]: POST /api/lectures/generate
+    try {
+      await generateLecture({ subject })
+    } catch {
+      /* fallback */
     }
-
-    list.sort((a, b) => {
-      const diff = new Date(b.date) - new Date(a.date)
-      return dateSort === 'newest' ? diff : -diff
-    })
-
-    return list
-  }, [subject, dateSort])
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE))
-
-  const paginated = useMemo(() => {
-    const start = (currentPage - 1) * PER_PAGE
-    return filtered.slice(start, start + PER_PAGE)
-  }, [filtered, currentPage])
-
-  const handleSubjectChange = (value) => {
-    setSubject(value)
-    setCurrentPage(1)
-  }
-
-  const handleDateSortChange = (value) => {
-    setDateSort(value)
-    setCurrentPage(1)
+    onGenerate()
   }
 
   return (
@@ -59,14 +44,14 @@ export function LecturesPage({ onGenerate, onViewLecture }) {
 
         <LecturesFilters
           subject={subject}
-          onSubjectChange={handleSubjectChange}
+          onSubjectChange={setSubject}
           dateSort={dateSort}
-          onDateSortChange={handleDateSortChange}
-          resultCount={filtered.length}
+          onDateSortChange={setDateSort}
+          resultCount={filteredCount}
         />
       </header>
 
-      <div className="lectures-grid">
+      <motion.div className="lectures-grid">
         {paginated.map((lecture, index) => (
           <LectureCard
             key={lecture.id}
@@ -75,8 +60,8 @@ export function LecturesPage({ onGenerate, onViewLecture }) {
             onView={onViewLecture}
           />
         ))}
-        <GenerateLectureCard onGenerate={onGenerate} index={paginated.length} />
-      </div>
+        <GenerateLectureCard onGenerate={handleGenerate} index={paginated.length} />
+      </motion.div>
 
       {totalPages > 1 && (
         <LecturesPagination

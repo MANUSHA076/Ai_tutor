@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { starterMaterials } from '../data/starterMaterials'
+// BACKEND [Python]: GET /api/home/session — materials list for Home dashboard metrics
 
 export function useMaterials() {
   const [materials, setMaterials] = useState(starterMaterials)

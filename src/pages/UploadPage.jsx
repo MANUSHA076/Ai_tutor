@@ -4,6 +4,8 @@ import { ExtractionSettings } from '../components/upload/ExtractionSettings'
 import { StorageCard } from '../components/upload/StorageCard'
 import { RecentUploads } from '../components/upload/RecentUploads'
 
+// BACKEND [Python]: documentsApi — upload, recent list (see src/hooks/useDocuments.js)
+
 export function UploadPage({
   extractionOptions,
   onToggleExtraction,

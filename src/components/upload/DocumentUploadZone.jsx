@@ -1,6 +1,9 @@
 import { motion } from 'framer-motion'
 import { CloudUpload, Paperclip } from 'lucide-react'
 
+// BACKEND [Python]: POST /api/documents/upload via useDocuments().uploadFile()
+// Replace onBrowse with <input type="file" accept=".pdf" /> and call uploadFile(file)
+
 export function DocumentUploadZone({ onBrowse }) {
   return (
     <motion.section

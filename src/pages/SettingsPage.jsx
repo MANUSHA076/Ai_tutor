@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, Save, Shield, Sliders, User } from 'lucide-react'
 import {
@@ -12,6 +12,8 @@ import { SettingsPreferences } from '../components/settings/SettingsPreferences'
 import { SettingsNotifications } from '../components/settings/SettingsNotifications'
 import { SettingsPrivacy } from '../components/settings/SettingsPrivacy'
 import '../styles/settings.css'
+// BACKEND [Python]: fetchSettings / updateSettings — src/api/settingsApi.js
+import { fetchSettings, updateSettings } from '../api/settingsApi'
 
 const sectionIcons = {
   account: User,
@@ -39,6 +41,20 @@ export function SettingsPage() {
     buildToggleState(privacyToggles, false),
   )
   const [saved, setSaved] = useState(false)
+  const [, setLoading] = useState(true)
+
+  // BACKEND [Python]: GET /api/settings — load on mount
+  useEffect(() => {
+    fetchSettings()
+      .then((data) => {
+        if (data?.account?.name) setName(data.account.name)
+        if (data?.account?.email) setEmail(data.account.email)
+        if (data?.preferences?.language) setLanguage(data.preferences.language)
+        if (data?.preferences?.lectureSpeed) setLectureSpeed(data.preferences.lectureSpeed)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
 
   const handlePreferenceToggle = (id, value) => {
     setPreferenceTogglesState((prev) => ({ ...prev, [id]: value }))
@@ -52,9 +68,20 @@ export function SettingsPage() {
     setPrivacyTogglesState((prev) => ({ ...prev, [id]: value }))
   }
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  // BACKEND [Python]: PUT /api/settings — Save Changes button
+  const handleSave = async () => {
+    try {
+      await updateSettings({
+        account: { name, email },
+        preferences: { language, lectureSpeed, ...preferenceTogglesState },
+        notifications: notificationTogglesState,
+        privacy: privacyTogglesState,
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch {
+      setSaved(false)
+    }
   }
 
   const renderContent = () => {

@@ -1,3 +1,5 @@
+// BACKEND [Python]: Mock data — replace with GET /api/documents/recent
+
 export const recentUploads = [
   {
     id: 1,
